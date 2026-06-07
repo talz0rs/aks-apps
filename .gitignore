@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local database files
+*.db
+
+# Secrets / env
+.env
+
+# Editor
+*.swp
+*.swo
