@@ -1,14 +1,21 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Depends
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy.orm import Session
+
+from database import engine, SessionLocal, Base
+from models import Item
 
 app = FastAPI()
 
-# In-memory item store
-items: dict[int, dict] = {}
-next_id = 1
+Base.metadata.create_all(bind=engine)
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# Request/response schemas
 class ItemCreate(BaseModel):
     name: str
     description: str | None = None
@@ -17,6 +24,8 @@ class ItemCreate(BaseModel):
 class ItemResponse(ItemCreate):
     id: int
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 @app.get("/healthz")
 def healthz():
@@ -24,37 +33,43 @@ def healthz():
 
 
 @app.post("/items", response_model=ItemResponse, status_code=201)
-def create_item(item: ItemCreate):
-    global next_id
-    new_item = {"id": next_id, "name": item.name, "description": item.description}
-    items[next_id] = new_item
-    next_id += 1
+def create_item(item: ItemCreate, db: Session = Depends(get_db)):
+    new_item = Item(name=item.name, description=item.description)
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
     return new_item
 
 
 @app.get("/items", response_model=list[ItemResponse])
-def list_items():
-    return list(items.values())
+def list_items(db: Session = Depends(get_db)):
+    return db.query(Item).all()
 
 
 @app.get("/items/{item_id}", response_model=ItemResponse)
-def get_item(item_id: int):
-    if item_id not in items:
+def get_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    return items[item_id]
+    return item
 
 
 @app.put("/items/{item_id}", response_model=ItemResponse)
-def update_item(item_id: int, item: ItemCreate):
-    if item_id not in items:
+def update_item(item_id: int, item: ItemCreate, db: Session = Depends(get_db)):
+    db_item = db.query(Item).filter(Item.id == item_id).first()
+    if db_item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    updated = {"id": item_id, "name": item.name, "description": item.description}
-    items[item_id] = updated
-    return updated
+    db_item.name = item.name
+    db_item.description = item.description
+    db.commit()
+    db.refresh(db_item)
+    return db_item
 
 
 @app.delete("/items/{item_id}", status_code=204)
-def delete_item(item_id: int):
-    if item_id not in items:
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    db_item = db.query(Item).filter(Item.id == item_id).first()
+    if db_item is None:
         raise HTTPException(status_code=404, detail="Item not found")
-    del items[item_id]
+    db.delete(db_item)
+    db.commit()
