@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from database import engine, SessionLocal, Base
 from models import Item
+
+
 
 app = FastAPI()
 
@@ -30,6 +33,16 @@ class ItemResponse(ItemCreate):
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readyz(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ready"}
+    except Exception:
+        raise HTTPException(status_code=503, detail="database unavailable")
+
 
 
 @app.post("/items", response_model=ItemResponse, status_code=201)
@@ -73,3 +86,5 @@ def delete_item(item_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Item not found")
     db.delete(db_item)
     db.commit()
+
+
