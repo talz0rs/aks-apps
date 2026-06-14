@@ -1,3 +1,4 @@
+import redis
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -13,6 +14,8 @@ from worker import process_item
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
+
+redis_client = redis.Redis.from_url("redis://localhost:6379/0")
 
 def get_db():
     db = SessionLocal()
@@ -41,10 +44,13 @@ def healthz():
 def readyz(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1"))
-        return {"status": "ready"}
     except Exception:
-        raise HTTPException(status_code=503, detail="database unavailable")
-
+        raise HTTPException(status_code=503, detail="database unabailable")
+    try:
+        redis_client.ping()
+    except Exception:
+        raise HTTPException(status_code=503, detail="redis unavailable")
+    return {"status": "ready"}
 
 
 @app.post("/items", response_model=ItemResponse, status_code=201)
