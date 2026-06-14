@@ -6,6 +6,8 @@ from sqlalchemy import text
 from database import engine, SessionLocal, Base
 from models import Item
 
+from worker import process_item
+
 
 
 app = FastAPI()
@@ -26,7 +28,7 @@ class ItemCreate(BaseModel):
 
 class ItemResponse(ItemCreate):
     id: int
-
+    status: str
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -52,6 +54,12 @@ def create_item(item: ItemCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_item)
     return new_item
+
+
+@app.post("/items/{item_id}/process", status_code=202)
+def trigger_process(item_id: int):
+    process_item.delay(item_id)
+    return {"status": "queued", "item_id": item_id}
 
 
 @app.get("/items", response_model=list[ItemResponse])
