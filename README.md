@@ -28,3 +28,12 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 # interactive API docs at http://localhost:8000/docs
 ```
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+> The suite emits a Starlette warning suggesting `httpx2`. That's a typosquat impersonating `httpx`.
