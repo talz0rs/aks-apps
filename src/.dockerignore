@@ -1,0 +1,16 @@
+# src/
+.venv
+*.db
+__pycache__
+**/__pycache__
+.*_cache*
+.*env*
+.*git*
+# vim swap/temp files
+*.swp
+*.swo
+*.swn
+*.swa
+
+# backup files ending with ~
+*~
