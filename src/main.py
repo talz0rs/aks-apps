@@ -1,3 +1,4 @@
+import os
 import redis
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, ConfigDict
@@ -15,7 +16,11 @@ app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
-redis_client = redis.Redis.from_url("redis://localhost:6379/0")
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+redis_client = redis.Redis.from_url(REDIS_URL)
+
 
 def get_db():
     db = SessionLocal()
