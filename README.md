@@ -1,23 +1,44 @@
 # aks-apps
 
-A SaaS-style application and its Kubernetes delivery: a **FastAPI** REST API and a **Celery** background worker, backed by **PostgreSQL** and **Redis**, deployed to **AKS** via **Kustomize** overlays and **Argo CD** (GitOps).
+A SaaS-style application and its Kubernetes delivery: a **FastAPI** REST API and a
+**Celery** background worker, backed by **PostgreSQL** and **Redis**, containerized with
+multi-stage Docker images and deployed to **AKS** via **Kustomize** overlays and **Argo CD** (GitOps).
+
+> Infrastructure (AKS, networking, registry, CI) lives in its companion repo: **[aks-infra](https://github.com/talz0rs/aks-infra)**.
 
 ## Architecture
 
-- **API** — FastAPI service exposing item CRUD plus Kubernetes liveness/readiness probes.
-- **Worker** — Celery worker for asynchronous jobs (Redis broker, PostgreSQL backing store).
-- **Manifests** — Kustomize base + per-environment overlays (dev / staging / prod).
-- **GitOps** — Argo CD Application definitions; dev/staging auto-sync, prod manual sync.
+```mermaid
+flowchart LR
+    client([Client]) -->|HTTP| api[FastAPI API]
+    api -->|enqueue task| redis[(Redis broker)]
+    redis --> worker[Celery Worker]
+    api -->|read / write| db[(PostgreSQL)]
+    worker -->|update status| db
+    api -.->|/healthz · /readyz| probes{{K8s probes}}
+```
+
+- **API** — FastAPI service: item CRUD + Kubernetes liveness/readiness probes.
+- **Worker** — Celery worker for async jobs (Redis broker, PostgreSQL backing store).
+- **Delivery** — multi-stage images → Kustomize base + per-env overlays (dev / staging / prod) → Argo CD (dev/staging auto-sync, prod manual sync).
 
 ## Status
 
 | Area | State |
 |---|---|
-| API — item CRUD + health endpoints | In progress |
-| Celery worker | Planned |
-| Containerization (multi-stage images) | Planned |
-| Kustomize manifests | Planned |
-| Argo CD GitOps | Planned |
+| API — item CRUD + health probes (`/healthz`, `/readyz`) | ✅ Done |
+| Celery worker — background processing (Redis broker) | ✅ Done |
+| Tests + CI (pytest + GitHub Actions) | ✅ Done |
+| Containerization — multi-stage Docker images | 🚧 In progress |
+| Kustomize manifests (dev / staging / prod) | ⬜ Planned |
+| Argo CD GitOps | ⬜ Planned |
+
+## Design notes
+
+- **Async FastAPI** — fits I/O-bound SaaS request handling and auto-generates OpenAPI docs.
+- **Celery** — offloads work that doesn't belong in the request/response cycle; Redis brokers tasks, workers process them.
+- **Split liveness/readiness** — `/healthz` (process alive) drives restarts; `/readyz` (DB + Redis reachable) gates traffic.
+- **Stateless app** — no state in the container (pods are ephemeral); data lives in external managed PostgreSQL/Redis.
 
 ## Local development
 
@@ -32,8 +53,9 @@ uvicorn main:app --reload
 ## Tests
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+# from the repo root
+pip install -r src/requirements-dev.txt
+pytest                      # runs the suite in tests/
 ```
 
-> The suite emits a Starlette warning suggesting `httpx2`. That's a typosquat impersonating `httpx`.
+> The suite emits a Starlette deprecation warning nudging toward `httpx2` — a typosquat impersonating `httpx`.
