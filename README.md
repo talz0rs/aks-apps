@@ -29,7 +29,7 @@ flowchart LR
 | API — item CRUD + health probes (`/healthz`, `/readyz`) | ✅ Done |
 | Celery worker — background processing (Redis broker) | ✅ Done |
 | Tests + CI (pytest + GitHub Actions) | ✅ Done |
-| Containerization — multi-stage Docker images | 🚧 In progress |
+| Containerization — multi-stage Docker images | ✅ Done |
 | Kustomize manifests (dev / staging / prod) | ⬜ Planned |
 | Argo CD GitOps | ⬜ Planned |
 
