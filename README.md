@@ -30,7 +30,7 @@ flowchart LR
 | Celery worker — background processing (Redis broker) | ✅ Done |
 | Tests + CI (pytest + GitHub Actions) | ✅ Done |
 | Containerization — multi-stage Docker images | ✅ Done |
-| Kustomize manifests (dev / staging / prod) | ⬜ Planned |
+| Kustomize manifests (dev / staging / prod) | ✅ Done |
 | Argo CD GitOps | ⬜ Planned |
 
 ## Design notes
@@ -39,6 +39,7 @@ flowchart LR
 - **Celery** — offloads work that doesn't belong in the request/response cycle; Redis brokers tasks, workers process them.
 - **Split liveness/readiness** — `/healthz` (process alive) drives restarts; `/readyz` (DB + Redis reachable) gates traffic.
 - **Stateless app** — no state in the container (pods are ephemeral); data lives in external managed PostgreSQL/Redis.
+- **Kustomize overlays** — one shared base; dev runs in-cluster Redis/PostgreSQL, staging/prod use Azure managed services. Increased resources for prod, plus HPA (api 2–10, worker 2–5, 70% CPU).
 
 ## Local development
 
